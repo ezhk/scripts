@@ -5,7 +5,7 @@ use strict;
 
 use YAML qw{LoadFile};
 
-use lib::abs qw{../lib/modules};
+use lib::abs qw{../modules};
 use API::YandexDNS;
 use Log qw{_print_it};
 
