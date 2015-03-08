@@ -5,7 +5,7 @@ use strict;
 
 use YAML qw{LoadFile};
 
-use lib::abs qw{../modules};
+use lib::abs qw{../lib/modules};
 use API::YandexDNS;
 use Log qw{_print_it};
 
@@ -42,7 +42,8 @@ for my $domain_name (keys %{$yml_data}) {
 		$yml_data->{$domain_name}->{'token'},
 		undef,
 		{
-			'ttl' => '180',
+			'ttl'	=> 180,
+			'cache'	=> 'true',
 		}
 	);
 	unless ($yndx) {
