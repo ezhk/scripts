@@ -4,8 +4,8 @@
 import yaml
 import socket
 import sys
-import custom.API.Yandex
-import custom.web
+import modules.API.Yandex
+import modules.web
 
 
 URL_GET_EXTERNAL_IPv4 = 'http://ipecho.net/plain'
@@ -14,7 +14,7 @@ CONFIG_PATH = 'update_ip.yml'
 
 
 def detect_ipv4(url=URL_GET_EXTERNAL_IPv4):
-    (status, ip_addr) = custom.web.get_url_body(url)
+    (status, ip_addr) = modules.web.get_url_body(url)
     if not status:
         return (False, 'error: cannot define IPv4 addr')
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
             print(err)
             sys.exit(1)
 
-    dns_obj = custom.API.Yandex.PDD_DNS(config['domain'],
+    dns_obj = modules.API.Yandex.PDD_DNS(config['domain'],
                                         config['token'])
     (status, domains_desc) = dns_obj.list_domain()
     if not status or 'records' not in domains_desc:
