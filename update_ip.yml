@@ -1,5 +1,6 @@
 ---
-token: <TOKEN>
-domain: <DOMAIN>
-subdomain: <SUBDOMAIN>
-ttl: 900
+token: str
+organization: int
+domain: str
+subdomain: str
+ttl: int

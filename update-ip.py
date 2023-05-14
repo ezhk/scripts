@@ -1,12 +1,13 @@
 #!/usr/bin/python3
 
 
-import yaml
 import socket
-import sys
+import typing
+
+import yaml
+
 import modules.API.Yandex
 import modules.web
-
 
 URL_GET_EXTERNAL_IPv4 = "http://ipecho.net/plain"
 DST_GET_EXTERNAL_IP = "a.root-servers.net"
@@ -14,9 +15,10 @@ CONFIG_PATH = "/etc/update-ip.yml"
 
 
 def detect_ipv4(url=URL_GET_EXTERNAL_IPv4):
-    (status, ip_addr) = modules.web.get_url_body(url)
-    if not status:
-        return (False, "error: cannot define IPv4 addr")
+    try:
+        ip_addr = modules.web.get_url_body(url)
+    except Exception as err:
+        return (False, f"cannot define IPv4 addr, {err}")
 
     return (True, ip_addr)
 
@@ -36,20 +38,14 @@ def detect_local_ip(addr_type=socket.AF_INET6, dst_addr=DST_GET_EXTERNAL_IP):
 
 
 if __name__ == "__main__":
-    config = None
+    config: typing.Dict[str, typing.Any]
+    with open(CONFIG_PATH, "r", encoding="utf-8") as fh:
+        config = yaml.load(fh, Loader=yaml.BaseLoader)
 
-    try:
-        with open(CONFIG_PATH, "r") as fh:
-            config = yaml.load(fh, Loader=yaml.BaseLoader)
-    except BaseException as err:
-        print(err)
-        sys.exit(1)
-
-    dns_obj = modules.API.Yandex.PDD_DNS(config["domain"], config["token"])
-    (status, domains_desc) = dns_obj.list_domain()
-    if not status or "records" not in domains_desc:
-        print("error: cannot get domain description")
-        sys.exit(1)
+    dns_obj = modules.API.Yandex.API360(config["organization"], config["domain"], config["token"])
+    domains_desc = dns_obj.list_domain()
+    if "records" not in domains_desc:
+        raise ValueError("cannot get domain description")
 
     for func_detect_ip in [detect_ipv4, detect_local_ip]:
         record_id = None
@@ -63,39 +59,34 @@ if __name__ == "__main__":
         record_type = "AAAA" if ":" in ip_addr else "A"
 
         for record_desc in domains_desc["records"]:
-            if (
-                record_desc["type"] == record_type
-                and record_desc["subdomain"] == config["subdomain"]
-            ):
-                if record_desc["content"] == ip_addr:
+            if record_desc["type"] == record_type and record_desc["name"] == config["subdomain"]:
+                if record_desc["address"] == ip_addr:
                     record_exists_flag = True
                     break
 
-                record_id = record_desc["record_id"]
+                record_id = record_desc["recordId"]
                 break
         if record_exists_flag:
             continue
 
         if record_id:
-            (status, message) = dns_obj.edit_domain(
-                {
+            message = dns_obj.edit_domain(
+                **{
                     "record_id": record_id,
-                    "type": record_type,
-                    "subdomain": config["subdomain"],
-                    "content": ip_addr,
+                    "address": ip_addr,
+                    "name": config["subdomain"],
+                    "record_type": record_type,
                     "ttl": config["ttl"],
                 }
             )
         else:
-            (status, message) = dns_obj.add_domain(
-                {
-                    "type": record_type,
-                    "subdomain": config["subdomain"],
-                    "content": ip_addr,
+            message = dns_obj.add_domain(
+                **{
+                    "address": ip_addr,
+                    "name": config["subdomain"],
+                    "record_type": record_type,
                     "ttl": config["ttl"],
                 }
             )
 
-        if not status:
-            print("error: %s" % message)
-
+        print("message: %s" % message)
