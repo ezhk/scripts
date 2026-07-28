@@ -6,8 +6,8 @@ import (
 )
 
 func TestDefaultConfigPath(t *testing.T) {
-	if DefaultConfigPath != "/etc/update-ip.yml" {
-		t.Fatalf("DefaultConfigPath = %q, want %q", DefaultConfigPath, "/etc/update-ip.yml")
+	if DefaultConfigPath != "/etc/update-ip.yaml" {
+		t.Fatalf("DefaultConfigPath = %q, want %q", DefaultConfigPath, "/etc/update-ip.yaml")
 	}
 }
 

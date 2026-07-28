@@ -28,7 +28,7 @@ These instructions apply to this Go module and every file below this directory.
 
 ## Behavioral invariants
 
-- Preserve the YAML keys `token`, `organization`, `domain`, `subdomain`, and `ttl`, and keep `/etc/update-ip.yml` as the default path.
+- Preserve the YAML keys `token`, `organization`, `domain`, `subdomain`, and `ttl`, and keep `/etc/update-ip.yaml` as the default path.
 - Parse configuration with the direct `yaml.Unmarshal` API. Do not introduce a generalized configuration layer for this five-field format.
 - External address detection must use HTTPS, bound to the requested address family: `tcp6` with `::` for IPv6 and `tcp4` with `0.0.0.0` for IPv4.
 - Accept only public, global-unicast addresses. Normalize addresses with `netip.Addr.Unmap` before comparing or storing them.

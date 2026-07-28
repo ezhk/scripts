@@ -10,7 +10,7 @@ import (
 )
 
 // DefaultConfigPath is the conventional system-wide configuration location.
-const DefaultConfigPath = "/etc/update-ip.yml"
+const DefaultConfigPath = "/etc/update-ip.yaml"
 
 // Config contains the YAML settings required to update one DNS record.
 type Config struct {
