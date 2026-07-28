@@ -127,6 +127,7 @@ func TestHTTPSAddressDetectorRejectsUnsafeResponses(t *testing.T) {
 		family AddressFamily
 		body   string
 	}{
+		"current network":    {family: IPv4Family, body: "0.0.0.1"},
 		"private address":    {family: IPv4Family, body: "192.168.1.10"},
 		"shared address":     {family: IPv4Family, body: "100.64.0.1"},
 		"documentation IPv4": {family: IPv4Family, body: "192.0.2.1"},
