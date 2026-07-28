@@ -81,27 +81,51 @@ func TestUpdaterChangesARecordToNATVisibleAddress(t *testing.T) {
 	}
 }
 
-func TestUpdaterPrefersIPv6OverIPv4(t *testing.T) {
+func TestUpdaterChangesIPv6AndIPv4Records(t *testing.T) {
 	dns := &stubDNS{records: []DNSRecord{
 		{ID: 1, Type: recordTypeA, Name: "home", Address: "9.9.9.9"},
-		{ID: 2, Type: recordTypeAAAA, Name: "other", Address: "2606:4700:4700::1001"},
+		{ID: 2, Type: recordTypeAAAA, Name: "home", Address: "2606:4700:4700::1001"},
 	}}
 	updater := newTestUpdater(dns,
-		stubDetector{address: netip.MustParseAddr("8.8.8.8")},
 		stubDetector{address: netip.MustParseAddr("2606:4700:4700::1111")},
+		stubDetector{address: netip.MustParseAddr("8.8.8.8")},
 	)
 
 	if err := updater.Run(context.Background()); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
-	if len(dns.updates) != 0 {
-		t.Fatalf("updates = %d, want 0", len(dns.updates))
+	if len(dns.updates) != 2 {
+		t.Fatalf("updates = %d, want 2", len(dns.updates))
 	}
-	if len(dns.adds) != 1 {
-		t.Fatalf("adds = %d, want 1", len(dns.adds))
+	if got := dns.updates[0]; got.id != 2 || got.value.Type != recordTypeAAAA || got.value.Address != "2606:4700:4700::1111" {
+		t.Fatalf("unexpected IPv6 update: %+v", got)
 	}
-	if got := dns.adds[0]; got.Type != recordTypeAAAA || got.Address != "2606:4700:4700::1111" {
-		t.Fatalf("unexpected add: %+v", got)
+	if got := dns.updates[1]; got.id != 1 || got.value.Type != recordTypeA || got.value.Address != "8.8.8.8" {
+		t.Fatalf("unexpected IPv4 update: %+v", got)
+	}
+	if len(dns.adds) != 0 {
+		t.Fatalf("adds = %d, want 0", len(dns.adds))
+	}
+}
+
+func TestUpdaterChangesIPv4WhenIPv6IsCurrent(t *testing.T) {
+	dns := &stubDNS{records: []DNSRecord{
+		{ID: 1, Type: recordTypeA, Name: "home", Address: "9.9.9.9"},
+		{ID: 2, Type: recordTypeAAAA, Name: "home", Address: "2606:4700:4700::1111"},
+	}}
+	updater := newTestUpdater(dns,
+		stubDetector{address: netip.MustParseAddr("2606:4700:4700::1111")},
+		stubDetector{address: netip.MustParseAddr("8.8.8.8")},
+	)
+
+	if err := updater.Run(context.Background()); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(dns.updates) != 1 {
+		t.Fatalf("updates = %d, want 1", len(dns.updates))
+	}
+	if got := dns.updates[0]; got.id != 1 || got.value.Type != recordTypeA || got.value.Address != "8.8.8.8" {
+		t.Fatalf("unexpected IPv4 update: %+v", got)
 	}
 }
 

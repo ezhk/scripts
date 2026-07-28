@@ -37,7 +37,7 @@ type DNSProvider interface {
 	Update(context.Context, int64, DNSRecordValue) error
 }
 
-// Updater detects the preferred public address and synchronizes its DNS record.
+// Updater detects public addresses and synchronizes their DNS records.
 type Updater struct {
 	Config    Config
 	Detectors []AddressDetector
@@ -45,14 +45,14 @@ type Updater struct {
 	Logger    *zap.Logger
 }
 
-// Run performs one address-detection and DNS-update cycle.
+// Run performs one address-detection and DNS-update cycle for every available address family.
 func (u Updater) Run(ctx context.Context) error {
 	logger := u.Logger
 	if logger == nil {
 		logger = zap.NewNop()
 	}
 
-	address, err := u.detectAddress(ctx, logger)
+	addresses, err := u.detectAddresses(ctx, logger)
 	if err != nil {
 		return err
 	}
@@ -61,6 +61,15 @@ func (u Updater) Run(ctx context.Context) error {
 		return fmt.Errorf("list DNS records: %w", err)
 	}
 
+	for _, address := range addresses {
+		if err := u.syncRecord(ctx, records, address, logger); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (u Updater) syncRecord(ctx context.Context, records []DNSRecord, address netip.Addr, logger *zap.Logger) error {
 	value := newDNSRecordValue(u.Config, address)
 	record, found := findRecord(records, value.Type, value.Name)
 	if found && addressesEqual(record.Address, address) {
@@ -88,9 +97,9 @@ func (u Updater) Run(ctx context.Context) error {
 	return nil
 }
 
-// detectAddress keeps the first IPv4 result as fallback while continuing to search for IPv6.
-func (u Updater) detectAddress(ctx context.Context, logger *zap.Logger) (netip.Addr, error) {
-	var ipv4Fallback netip.Addr
+func (u Updater) detectAddresses(ctx context.Context, logger *zap.Logger) ([]netip.Addr, error) {
+	var addresses []netip.Addr
+	var foundIPv4, foundIPv6 bool
 	for _, detector := range u.Detectors {
 		address, err := detector.Detect(ctx)
 		if err != nil {
@@ -102,20 +111,26 @@ func (u Updater) detectAddress(ctx context.Context, logger *zap.Logger) (netip.A
 			logger.Warn("address detector returned a non-public address", zap.String("address", address.String()))
 			continue
 		}
-		if address.Is6() {
-			return address, nil
+		if address.Is4() {
+			if foundIPv4 {
+				continue
+			}
+			foundIPv4 = true
+		} else {
+			if foundIPv6 {
+				continue
+			}
+			foundIPv6 = true
 		}
-		if !ipv4Fallback.IsValid() {
-			ipv4Fallback = address
-		}
+		addresses = append(addresses, address)
 	}
-	if ipv4Fallback.IsValid() {
-		return ipv4Fallback, nil
+	if len(addresses) == 0 {
+		return nil, errors.New("could not detect a public IPv4 or IPv6 address")
 	}
-	return netip.Addr{}, errors.New("could not detect a public IPv4 or IPv6 address")
+	return addresses, nil
 }
 
-// newDNSRecordValue maps the selected address family to its corresponding DNS record type.
+// newDNSRecordValue maps an address family to its corresponding DNS record type.
 func newDNSRecordValue(config Config, address netip.Addr) DNSRecordValue {
 	recordType := recordTypeA
 	if address.Is6() {

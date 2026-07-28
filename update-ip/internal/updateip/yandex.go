@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultYandexAPIURL = "https://cloud-api.yandex.net"
+	defaultYandexAPIURL = "https://api360.yandex.net"
 	maxAPIResponseSize  = 4 << 20
 	recordsPageSize     = 9999
 )

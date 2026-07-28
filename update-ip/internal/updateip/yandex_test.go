@@ -23,6 +23,19 @@ func newTestYandexDNSClient(server *httptest.Server) YandexDNSClient {
 	}
 }
 
+func TestDefaultYandexDNSRecordsURL(t *testing.T) {
+	client := YandexDNSClient{
+		BaseURL:      defaultYandexAPIURL,
+		Organization: "123456",
+		Domain:       "example.com",
+	}
+
+	const want = "https://api360.yandex.net/directory/v1/org/123456/domains/example.com/dns"
+	if got := client.recordsURL(); got != want {
+		t.Fatalf("recordsURL() = %q, want %q", got, want)
+	}
+}
+
 func TestYandexDNSRequests(t *testing.T) {
 	const recordsPath = "/directory/v1/org/123456/domains/example.com/dns"
 	var writes []struct {
