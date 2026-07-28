@@ -18,6 +18,27 @@ const (
 	detectionTimeout        = 10 * time.Second
 )
 
+var (
+	publicIPv6AddressPrefix = netip.MustParsePrefix("2000::/3")
+	specialPurposePrefixes  = []netip.Prefix{
+		netip.MustParsePrefix("100.64.0.0/10"),
+		netip.MustParsePrefix("192.0.0.0/24"),
+		netip.MustParsePrefix("192.0.2.0/24"),
+		netip.MustParsePrefix("192.31.196.0/24"),
+		netip.MustParsePrefix("192.52.193.0/24"),
+		netip.MustParsePrefix("192.88.99.0/24"),
+		netip.MustParsePrefix("192.175.48.0/24"),
+		netip.MustParsePrefix("198.18.0.0/15"),
+		netip.MustParsePrefix("198.51.100.0/24"),
+		netip.MustParsePrefix("203.0.113.0/24"),
+		netip.MustParsePrefix("240.0.0.0/4"),
+		netip.MustParsePrefix("2001::/23"),
+		netip.MustParsePrefix("2001:db8::/32"),
+		netip.MustParsePrefix("2002::/16"),
+		netip.MustParsePrefix("3fff::/20"),
+	}
+)
+
 // AddressFamily identifies an IP protocol family.
 type AddressFamily uint8
 
@@ -85,15 +106,24 @@ func newHTTPSAddressDetector(family AddressFamily, serviceURLs ...string) HTTPSA
 	network, localAddress := family.dialConfig()
 	dialer := &net.Dialer{LocalAddr: localAddress}
 	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
 	transport.DialContext = func(ctx context.Context, _ string, address string) (net.Conn, error) {
 		return dialer.DialContext(ctx, network, address)
 	}
 
 	return HTTPSAddressDetector{
-		Client:      &http.Client{Transport: transport, Timeout: detectionTimeout},
+		Client: &http.Client{
+			Transport:     transport,
+			Timeout:       detectionTimeout,
+			CheckRedirect: rejectAddressServiceRedirect,
+		},
 		Family:      family,
 		ServiceURLs: serviceURLs,
 	}
+}
+
+func rejectAddressServiceRedirect(_ *http.Request, _ []*http.Request) error {
+	return errors.New("address service redirects are not allowed")
 }
 
 // Detect returns the first valid public address reported by the configured services.
@@ -182,5 +212,17 @@ func parsePublicAddress(value string, family AddressFamily) (netip.Addr, error) 
 }
 
 func isPublicAddress(address netip.Addr) bool {
-	return address.IsValid() && address.IsGlobalUnicast() && !address.IsPrivate()
+	address = address.Unmap()
+	if !address.IsValid() || !address.IsGlobalUnicast() || address.IsPrivate() {
+		return false
+	}
+	if address.Is6() && !publicIPv6AddressPrefix.Contains(address) {
+		return false
+	}
+	for _, prefix := range specialPurposePrefixes {
+		if prefix.Contains(address) {
+			return false
+		}
+	}
+	return true
 }

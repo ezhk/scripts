@@ -62,8 +62,8 @@ func TestUpdaterChangesARecordToNATVisibleAddress(t *testing.T) {
 		{ID: 42, Type: recordTypeA, Name: "home", Address: "203.0.113.10"},
 	}}
 	updater := newTestUpdater(dns,
-		stubDetector{address: netip.MustParseAddr("8.8.8.8")},
 		stubDetector{err: errors.New("IPv6 is unavailable")},
+		stubDetector{address: netip.MustParseAddr("8.8.8.8")},
 	)
 
 	if err := updater.Run(context.Background()); err != nil {

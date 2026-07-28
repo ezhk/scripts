@@ -13,7 +13,7 @@ const (
 	primaryAddressServiceURL   = "https://api64.ipify.org"
 	secondaryAddressServiceURL = "https://icanhazip.com"
 	yandexRequestTimeout       = 10 * time.Second
-	updateTimeout              = 30 * time.Second
+	updateTimeout              = 70 * time.Second
 )
 
 // Run wires the production dependencies and performs one bounded update attempt.

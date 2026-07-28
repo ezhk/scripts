@@ -50,6 +50,37 @@ func TestAddressFamilyDialConfig(t *testing.T) {
 	}
 }
 
+func TestHTTPSAddressDetectorBypassesEnvironmentProxy(t *testing.T) {
+	t.Setenv("HTTPS_PROXY", "http://proxy.example:8080")
+	detector := newHTTPSAddressDetector(IPv4Family, "https://address.example/ip")
+	client, ok := detector.Client.(*http.Client)
+	if !ok {
+		t.Fatalf("Client type = %T, want *http.Client", detector.Client)
+	}
+	transport, ok := client.Transport.(*http.Transport)
+	if !ok {
+		t.Fatalf("Transport type = %T, want *http.Transport", client.Transport)
+	}
+	if transport.Proxy != nil {
+		t.Fatal("Transport.Proxy is configured, want direct discovery requests")
+	}
+}
+
+func TestHTTPSAddressDetectorRejectsRedirects(t *testing.T) {
+	detector := newHTTPSAddressDetector(IPv4Family, "https://address.example/ip")
+	client, ok := detector.Client.(*http.Client)
+	if !ok {
+		t.Fatalf("Client type = %T, want *http.Client", detector.Client)
+	}
+	request, err := http.NewRequest(http.MethodGet, "http://address.example/ip", nil)
+	if err != nil {
+		t.Fatalf("NewRequest() error = %v", err)
+	}
+	if err := client.CheckRedirect(request, nil); err == nil {
+		t.Fatal("CheckRedirect() error = nil")
+	}
+}
+
 func TestHTTPSAddressDetectorUsesFallback(t *testing.T) {
 	client := &stubHTTPClient{responses: map[string]responseSpec{
 		"https://first.example/ip":  {status: http.StatusServiceUnavailable},
@@ -96,9 +127,14 @@ func TestHTTPSAddressDetectorRejectsUnsafeResponses(t *testing.T) {
 		family AddressFamily
 		body   string
 	}{
-		"private address":  {family: IPv4Family, body: "192.168.1.10"},
-		"wrong family":     {family: IPv4Family, body: "2606:4700:4700::1111"},
-		"invalid response": {family: IPv4Family, body: "not an address"},
+		"private address":    {family: IPv4Family, body: "192.168.1.10"},
+		"shared address":     {family: IPv4Family, body: "100.64.0.1"},
+		"documentation IPv4": {family: IPv4Family, body: "192.0.2.1"},
+		"benchmark address":  {family: IPv4Family, body: "198.18.0.1"},
+		"documentation IPv6": {family: IPv6Family, body: "2001:db8::1"},
+		"reserved IPv6":      {family: IPv6Family, body: "5f00::1"},
+		"wrong family":       {family: IPv4Family, body: "2606:4700:4700::1111"},
+		"invalid response":   {family: IPv4Family, body: "not an address"},
 	}
 
 	for name, test := range tests {

@@ -61,12 +61,13 @@ func (u Updater) Run(ctx context.Context) error {
 		return fmt.Errorf("list DNS records: %w", err)
 	}
 
+	var syncErrors []error
 	for _, address := range addresses {
 		if err := u.syncRecord(ctx, records, address, logger); err != nil {
-			return err
+			syncErrors = append(syncErrors, err)
 		}
 	}
-	return nil
+	return errors.Join(syncErrors...)
 }
 
 func (u Updater) syncRecord(ctx context.Context, records []DNSRecord, address netip.Addr, logger *zap.Logger) error {
