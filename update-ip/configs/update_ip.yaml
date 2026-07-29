@@ -1,0 +1,6 @@
+---
+token: your-oauth-token
+organization: 123456
+domain: example.com
+subdomain: home
+ttl: 300
